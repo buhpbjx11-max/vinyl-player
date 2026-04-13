@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Player</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    padding: 20px;
+  }
+
+  .player-card {
+    background: #141414;
+    border-radius: 24px;
+    padding: 40px 32px 36px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+  }
+
+  .vinyl-wrapper {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    flex-shrink: 0;
+  }
+
+  .vinyl {
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    position: relative;
+    animation: spin 4s linear infinite;
+    animation-play-state: paused;
+    will-change: transform;
+  }
+
+  .vinyl.playing { animation-play-state: running; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .vinyl-disc {
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 28%, rgba(255,255,255,0.03) 28.5%, transparent 30%),
+      radial-gradient(circle at 50% 50%, transparent 33%, rgba(255,255,255,0.02) 33.5%, transparent 35%),
+      radial-gradient(circle at 50% 50%, transparent 38%, rgba(255,255,255,0.02) 38.5%, transparent 40%),
+      radial-gradient(circle at 50% 50%, transparent 43%, rgba(255,255,255,0.02) 43.5%, transparent 45%),
+      radial-gradient(circle at 50% 50%, transparent 48%, rgba(255,255,255,0.02) 48.5%, transparent 50%),
+      conic-gradient(
+        #1a1a1a 0deg, #111 30deg, #1c1c1c 60deg, #111 90deg,
+        #1a1a1a 120deg, #111 150deg, #1c1c1c 180deg, #111 210deg,
+        #1a1a1a 240deg, #111 270deg, #1c1c1c 300deg, #111 330deg, #1a1a1a 360deg
+      );
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px #2a2a2a inset, 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  .vinyl-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #222;
+    z-index: 2;
+  }
+
+  .vinyl-label img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .vinyl-label-fallback {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #c0392b, #8e44ad);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #fff;
+  }
+
+  .vinyl-hole {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #0a0a0a;
+    z-index: 3;
+    box-shadow: 0 0 0 1px #333;
+  }
+
+  .tonearm {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 90px;
+    height: 110px;
+    pointer-events: none;
+    z-index: 5;
+    transform-origin: 80px 12px;
+    transform: rotate(-22deg);
+    transition: transform 0.6s ease;
+  }
+
+  .tonearm.playing { transform: rotate(-8deg); }
+
+  .tonearm svg { width: 100%; height: 100%; }
+
+  .track-info {
+    text-align: center;
+    width: 100%;
+  }
+
+  .track-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .track-artist {
+    font-size: 14px;
+    color: #888;
+    font-weight: 400;
+    letter-spacing: 0.2px;
+  }
+
+  .progress-area {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .progress-bar-wrap {
+    width: 100%;
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: #e74c3c;
+    width: 0%;
+    transition: width 0.3s linear;
+    pointer-events: none;
+  }
+
+  .progress-times {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #555;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    transition: color 0.2s, transform 0.15s;
+    padding: 6px;
+    border-radius: 50%;
+  }
+
+  .btn:hover { color: #ccc; transform: scale(1.1); }
+  .btn:active { transform: scale(0.95); }
+
+  .btn-play {
+    width: 60px;
+    height: 60px;
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 50%;
+    box-shadow: 0 4px 20px rgba(231,76,60,0.4);
+  }
+
+  .btn-play:hover { background: #c0392b; color: #fff; transform: scale(1.05); }
+
+  .volume-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .volume-icon { color: #555; flex-shrink: 0; }
+
+  .volume-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    background: #2a2a2a;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #e74c3c;
+    cursor: pointer;
+    border: none;
+  }
+
+  .volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #e74c3c;
+    cursor: pointer;
+    border: none;
+  }
+
+  @media (max-width: 420px) {
+    .player-card { padding: 28px 20px 24px; }
+    .vinyl-wrapper, .vinyl, .vinyl-disc { width: 220px; height: 220px; }
+    .vinyl-label { width: 82px; height: 82px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="player-card">
+
+  <div class="vinyl-wrapper">
+    <div class="vinyl" id="vinyl">
+      <div class="vinyl-disc"></div>
+      <div class="vinyl-label">
+        <img src="cover.jpg" alt="Album cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="vinyl-label-fallback" style="display:none;">♪</div>
+      </div>
+      <div class="vinyl-hole"></div>
+    </div>
+
+    <div class="tonearm" id="tonearm">
+      <svg viewBox="0 0 90 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="80" cy="12" r="8" fill="#2a2a2a" stroke="#444" stroke-width="1.5"/>
+        <circle cx="80" cy="12" r="3" fill="#555"/>
+        <line x1="80" y1="20" x2="20" y2="100" stroke="#555" stroke-width="3.5" stroke-linecap="round"/>
+        <line x1="80" y1="20" x2="22" y2="98" stroke="#666" stroke-width="1" stroke-linecap="round"/>
+        <rect x="13" y="96" width="14" height="6" rx="2" fill="#444" transform="rotate(-30 13 96)"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="track-info">
+    <div class="track-title" id="trackTitle">Song Title</div>
+    <div class="track-artist" id="trackArtist">Artist Name</div>
+  </div>
+
+  <div class="progress-area">
+    <div class="progress-bar-wrap" id="progressWrap">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-times">
+      <span id="currentTime">0:00</span>
+      <span id="totalTime">0:00</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="btnPrev" title="Previous" aria-label="Previous">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/>
+      </svg>
+    </button>
+
+    <button class="btn btn-play" id="btnPlay" title="Play / Pause" aria-label="Play">
+      <svg id="iconPlay" width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+      <svg id="iconPause" width="26" height="26" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+      </svg>
+    </button>
+
+    <button class="btn" id="btnNext" title="Next" aria-label="Next">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 3.9V8.1L8.5 12zM16 6h2v12h-2z"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="volume-row">
+    <svg class="volume-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+    </svg>
+    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.01" value="0.8">
+    <svg class="volume-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+    </svg>
+  </div>
+
+</div>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+  const TRACKS = [
+    {
+      title: "Song Title",
+      artist: "Artist Name",
+      src: "song.mp3",
+      cover: "cover.jpg"
+    },
+    // Add more tracks here:
+    // {
+    //   title: "Another Song",
+    //   artist: "Another Artist",
+    //   src: "song2.mp3",
+    //   cover: "cover2.jpg"
+    // },
+  ];
+
+  const audio        = document.getElementById('audio');
+  const vinyl        = document.getElementById('vinyl');
+  const tonearm      = document.getElementById('tonearm');
+  const btnPlay      = document.getElementById('btnPlay');
+  const iconPlay     = document.getElementById('iconPlay');
+  const iconPause    = document.getElementById('iconPause');
+  const btnPrev      = document.getElementById('btnPrev');
+  const btnNext      = document.getElementById('btnNext');
+  const progressFill = document.getElementById('progressFill');
+  const progressWrap = document.getElementById('progressWrap');
+  const currentTime  = document.getElementById('currentTime');
+  const totalTime    = document.getElementById('totalTime');
+  const volumeSlider = document.getElementById('volumeSlider');
+  const trackTitle   = document.getElementById('trackTitle');
+  const trackArtist  = document.getElementById('trackArtist');
+  const vinylImg     = document.querySelector('.vinyl-label img');
+  const vinylFallback= document.querySelector('.vinyl-label-fallback');
+
+  let currentIndex = 0;
+  let isPlaying = false;
+
+  function fmt(s) {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return m + ':' + String(sec).padStart(2, '0');
+  }
+
+  function loadTrack(index) {
+    const t = TRACKS[index];
+    trackTitle.textContent  = t.title;
+    trackArtist.textContent = t.artist;
+    audio.src = t.src;
+    audio.volume = parseFloat(volumeSlider.value);
+    vinylImg.src = t.cover;
+    vinylImg.style.display = '';
+    vinylFallback.style.display = 'none';
+    progressFill.style.width = '0%';
+    currentTime.textContent = '0:00';
+    totalTime.textContent = '0:00';
+  }
+
+  function play() {
+    audio.play().catch(() => {});
+    isPlaying = true;
+    vinyl.classList.add('playing');
+    tonearm.classList.add('playing');
+    iconPlay.style.display = 'none';
+    iconPause.style.display = '';
+  }
+
+  function pause() {
+    audio.pause();
+    isPlaying = false;
+    vinyl.classList.remove('playing');
+    tonearm.classList.remove('playing');
+    iconPlay.style.display = '';
+    iconPause.style.display = 'none';
+  }
+
+  btnPlay.addEventListener('click', () => { isPlaying ? pause() : play(); });
+
+  btnPrev.addEventListener('click', () => {
+    currentIndex = (currentIndex - 1 + TRACKS.length) % TRACKS.length;
+    loadTrack(currentIndex);
+    if (isPlaying) play();
+  });
+
+  btnNext.addEventListener('click', () => {
+    currentIndex = (currentIndex + 1) % TRACKS.length;
+    loadTrack(currentIndex);
+    if (isPlaying) play();
+  });
+
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
+    progressFill.style.width = pct + '%';
+    currentTime.textContent = fmt(audio.currentTime);
+  });
+
+  audio.addEventListener('loadedmetadata', () => {
+    totalTime.textContent = fmt(audio.duration);
+  });
+
+  audio.addEventListener('ended', () => {
+    currentIndex = (currentIndex + 1) % TRACKS.length;
+    loadTrack(currentIndex);
+    play();
+  });
+
+  progressWrap.addEventListener('click', (e) => {
+    const rect = progressWrap.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = ratio * audio.duration;
+  });
+
+  volumeSlider.addEventListener('input', () => {
+    audio.volume = parseFloat(volumeSlider.value);
+  });
+
+  loadTrack(0);
+</script>
+</body>
+</html>
